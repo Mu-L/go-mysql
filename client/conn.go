@@ -715,7 +715,7 @@ func (c *Conn) exec(query string) (*mysql.Result, error) {
 // https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_com_query.html
 func (c *Conn) execSend(query string) error {
 	var buf bytes.Buffer
-	defer clear(c.queryAttributes)
+	defer func() { c.queryAttributes = nil }()
 
 	if c.capability&mysql.CLIENT_QUERY_ATTRIBUTES > 0 {
 		if c.includeLine >= 0 {
@@ -822,9 +822,11 @@ func (c *Conn) StatusString() string {
 	return strings.Join(stats, "|")
 }
 
-// SetQueryAttributes sets the query attributes to be send along with the next query
+// SetQueryAttributes sets the query attributes to be sent along with the next query.
+// It copies the attribute slice so subsequent additions and resets do not modify
+// the caller's slice. Attribute values themselves are not deep-copied.
 func (c *Conn) SetQueryAttributes(attrs ...mysql.QueryAttribute) error {
-	c.queryAttributes = attrs
+	c.queryAttributes = slices.Clone(attrs)
 	return nil
 }
 
